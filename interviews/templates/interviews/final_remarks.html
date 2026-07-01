@@ -1,0 +1,22 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Final Remarks{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Final remarks</h1>
+<p class="lead">Add anything you want included before the mentor report is created.</p>
+
+<form class="panel form-grid" method="post">
+    {% csrf_token %}
+    {% for field in form %}
+        <div>
+            {{ field.label_tag }}
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+    <div class="actions">
+        <button type="submit">Finish interview</button>
+    </div>
+</form>
+{% endblock %}

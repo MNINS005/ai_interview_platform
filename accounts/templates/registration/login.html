@@ -1,0 +1,24 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Login</h1>
+<p class="lead">Login to start interviews and view your saved reports.</p>
+
+<form class="panel form-grid" method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+        <div>
+            {{ field.label_tag }}
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+    <div class="actions">
+        <button type="submit">Login</button>
+        <a class="btn btn-secondary" href="{% url 'accounts:register' %}">Create account</a>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,13 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Resume Upload{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <h1>Resume upload is connected</h1>
+    <p class="muted">Use the Start Interview page to upload a PDF resume or paste resume text. The app extracts text with pdfplumber and sends it into the interview planner.</p>
+    <div class="actions">
+        <a class="btn" href="{% url 'interviews:start' %}">Start interview</a>
+    </div>
+</section>
+{% endblock %}

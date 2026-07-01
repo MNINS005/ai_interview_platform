@@ -1,0 +1,38 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="actions">
+    <div>
+        <h1 class="page-title">Your mock interviews</h1>
+        <p class="lead">Start a role-based practice round or review your past reports.</p>
+    </div>
+</div>
+
+<div class="actions">
+    <a class="btn" href="{% url 'interviews:start' %}">Start new interview</a>
+</div>
+
+<section class="grid">
+    {% for session in sessions %}
+        <article class="card">
+            <h2>{{ session.role_label }}</h2>
+            <p class="muted">{{ session.created_at|date:"M d, Y h:i A" }}</p>
+            <p><span class="status-pill">{{ session.get_status_display }}</span></p>
+            <div class="actions">
+                {% if session.status == "completed" %}
+                    <a class="btn" href="{% url 'interviews:report' session.id %}">View report</a>
+                {% else %}
+                    <a class="btn" href="{% url 'interviews:question' session.id 1 %}">Continue</a>
+                {% endif %}
+            </div>
+        </article>
+    {% empty %}
+        <div class="panel">
+            <h2>No interviews yet</h2>
+            <p class="muted">Start your first mock interview and the dashboard will track it here.</p>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}

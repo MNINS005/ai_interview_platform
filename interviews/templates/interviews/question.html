@@ -1,0 +1,149 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Question {{ progress }}{% endblock %}
+
+{% block content %}
+<div class="progress">Question {{ progress }} of {{ total_questions }} - {{ session.role_label }}</div>
+
+<section class="panel question-box">
+    <p class="muted">{{ question.category|title }} question</p>
+    <h1>{{ question.text }}</h1>
+</section>
+
+<form class="panel form-grid" method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div>
+        {{ form.answer_text.label_tag }}
+        {{ form.answer_text }}
+        {{ form.answer_text.errors }}
+    </div>
+
+    <div class="voice-panel">
+        <label>Live speech to text</label>
+        <div class="recorder-controls">
+            <button class="btn-secondary" id="start-dictation" type="button">Start live text</button>
+            <button class="btn-secondary" id="stop-dictation" type="button" disabled>Stop live text</button>
+            <span class="recording-status" id="dictation-status">Not listening</span>
+        </div>
+        <p class="helptext">Use Chrome or Edge. Allow microphone permission, then speak clearly for a few seconds.</p>
+    </div>
+
+    <div class="actions">
+        <button type="submit">Save and continue</button>
+        <a class="btn btn-secondary" href="{% url 'interviews:dashboard' %}">Dashboard</a>
+    </div>
+</form>
+
+<script>
+    const answerInput = document.getElementById("id_answer_text");
+    const startDictationButton = document.getElementById("start-dictation");
+    const stopDictationButton = document.getElementById("stop-dictation");
+    const dictationStatus = document.getElementById("dictation-status");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    let recognition = null;
+    let isListening = false;
+    let baseText = "";
+    let currentFinalText = "";
+
+    function cleanJoin(parts) {
+        return parts
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function writeAnswer(interimText = "") {
+        answerInput.value = cleanJoin([baseText, currentFinalText, interimText]);
+        answerInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function startRecognition() {
+        try {
+            recognition.start();
+        } catch (error) {
+            dictationStatus.textContent = "Already listening";
+        }
+    }
+
+    if (!SpeechRecognition) {
+        startDictationButton.disabled = true;
+        dictationStatus.textContent = "Speech-to-text is not supported in this browser";
+    } else {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            startDictationButton.disabled = true;
+            stopDictationButton.disabled = false;
+            dictationStatus.textContent = "Listening...";
+        };
+
+        recognition.onresult = (event) => {
+            let interimText = "";
+
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+                const transcript = event.results[index][0].transcript;
+                if (event.results[index].isFinal) {
+                    currentFinalText = cleanJoin([currentFinalText, transcript]);
+                } else {
+                    interimText = cleanJoin([interimText, transcript]);
+                }
+            }
+
+            writeAnswer(interimText);
+            dictationStatus.textContent = interimText ? `Hearing: ${interimText}` : "Text added";
+        };
+
+        recognition.onnomatch = () => {
+            dictationStatus.textContent = "Could not understand. Try speaking again.";
+        };
+
+        recognition.onerror = (event) => {
+            const friendlyErrors = {
+                "not-allowed": "Microphone permission blocked. Allow mic access in browser settings.",
+                "no-speech": "No speech detected. Try again closer to the mic.",
+                "audio-capture": "No microphone found.",
+                "network": "Speech service network error. Try Chrome/Edge with internet.",
+            };
+            dictationStatus.textContent = friendlyErrors[event.error] || `Speech error: ${event.error}`;
+            if (event.error === "not-allowed" || event.error === "audio-capture") {
+                isListening = false;
+            }
+        };
+
+        recognition.onend = () => {
+            writeAnswer();
+            if (isListening) {
+                dictationStatus.textContent = "Listening...";
+                window.setTimeout(startRecognition, 250);
+            } else {
+                baseText = answerInput.value.trim();
+                currentFinalText = "";
+                startDictationButton.disabled = false;
+                stopDictationButton.disabled = true;
+                dictationStatus.textContent = "Not listening";
+            }
+        };
+
+        startDictationButton.addEventListener("click", () => {
+            baseText = answerInput.value.trim();
+            currentFinalText = "";
+            isListening = true;
+            startRecognition();
+        });
+
+        stopDictationButton.addEventListener("click", () => {
+            isListening = false;
+            recognition.stop();
+        });
+    }
+</script>
+{% endblock %}

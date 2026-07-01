@@ -1,0 +1,49 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Interview Report{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Interview report</h1>
+<p class="lead">{{ session.role_label }} Â· {{ session.created_at|date:"M d, Y" }}</p>
+
+{% if report %}
+    <section class="panel">
+        <h2>Mentor summary</h2>
+        <p>{{ report.summary }}</p>
+        <h3>Recommendations</h3>
+        <ul>
+            {% for item in report.recommendations %}
+                <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+{% endif %}
+
+<section class="grid">
+    {% for question in questions %}
+        <article class="card">
+            <p class="muted">{{ question.category|title }}</p>
+            <h2>{{ question.text }}</h2>
+            {% if question.answer %}
+                <p><strong>Your answer:</strong> {{ question.answer.text }}</p>
+                {% if question.answer.evaluation %}
+                    <p><strong>Score:</strong> {{ question.answer.evaluation.score }}/10</p>
+                    <p><strong>Feedback:</strong> {{ question.answer.evaluation.feedback }}</p>
+                {% endif %}
+            {% endif %}
+        </article>
+    {% endfor %}
+</section>
+
+{% if session.user_remarks %}
+    <section class="panel">
+        <h2>Your final remarks</h2>
+        <p>{{ session.user_remarks }}</p>
+    </section>
+{% endif %}
+
+<div class="actions">
+    <a class="btn" href="{% url 'interviews:start' %}">Practice again</a>
+    <a class="btn btn-secondary" href="{% url 'interviews:dashboard' %}">Dashboard</a>
+</div>
+{% endblock %}

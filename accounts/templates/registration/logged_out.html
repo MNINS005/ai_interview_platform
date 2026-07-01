@@ -1,0 +1,14 @@
+﻿{% extends "interviews/base.html" %}
+
+{% block title %}Logged out{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <h1>You are logged out</h1>
+    <p class="muted">Come back when you want to practice another mock interview.</p>
+    <div class="actions">
+        <a class="btn" href="{% url 'login' %}">Login again</a>
+        <a class="btn btn-secondary" href="{% url 'home' %}">Home</a>
+    </div>
+</section>
+{% endblock %}
