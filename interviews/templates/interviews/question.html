@@ -3,11 +3,12 @@
 {% block title %}Question {{ progress }}{% endblock %}
 
 {% block content %}
-<div class="progress">Question {{ progress }} of {{ total_questions }} - {{ session.role_label }}</div>
+<div class="progress">Question {{ progress }} - Topic {{ topic_number }} of {{ total_topics }} - {{ session.role_label }}</div>
 
 <section class="panel question-box">
     <p class="muted">{{ question.category|title }} question</p>
     <h1>{{ question.text }}</h1>
+    <button class="btn-secondary" id="speak-question" type="button">🔊 Read question aloud</button>
 </section>
 
 <form class="panel form-grid" method="post">
@@ -30,6 +31,16 @@
         <p class="helptext">Use Chrome or Edge. Allow microphone permission, then speak clearly for a few seconds.</p>
     </div>
 
+    <div class="voice-panel">
+        <label>Record voice answer (server transcription)</label>
+        <div class="recorder-controls">
+            <button class="btn-secondary" id="start-recording" type="button">Start recording</button>
+            <button class="btn-secondary" id="stop-recording" type="button" disabled>Stop and transcribe</button>
+            <span class="recording-status" id="recording-status">Not recording</span>
+        </div>
+        <p class="helptext">Works in any browser with a microphone. Records your answer as audio and sends it once for transcription.</p>
+    </div>
+
     <div class="actions">
         <button type="submit">Save and continue</button>
         <a class="btn btn-secondary" href="{% url 'interviews:dashboard' %}">Dashboard</a>
@@ -42,6 +53,23 @@
     const stopDictationButton = document.getElementById("stop-dictation");
     const dictationStatus = document.getElementById("dictation-status");
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const questionText = "{{ question.text|escapejs }}";
+    const speakButton = document.getElementById("speak-question");
+
+    function speakQuestion() {
+    if (!("speechSynthesis" in window)) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(questionText);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+if (speakButton) {
+    speakButton.addEventListener("click", speakQuestion);
+}
 
     let recognition = null;
     let isListening = false;
@@ -143,6 +171,83 @@
         stopDictationButton.addEventListener("click", () => {
             isListening = false;
             recognition.stop();
+        });
+    }
+
+    const startRecordingButton = document.getElementById("start-recording");
+    const stopRecordingButton = document.getElementById("stop-recording");
+    const recordingStatus = document.getElementById("recording-status");
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+        startRecordingButton.disabled = true;
+        recordingStatus.textContent = "Audio recording is not supported in this browser";
+    } else {
+        startRecordingButton.addEventListener("click", async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+                    ? "audio/webm"
+                    : "audio/mp4";
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                recordedChunks = [];
+
+                mediaRecorder.addEventListener("dataavailable", (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                });
+
+                mediaRecorder.addEventListener("stop", async () => {
+                    stream.getTracks().forEach((track) => track.stop());
+                    recordingStatus.textContent = "Transcribing...";
+
+                    const audioBlob = new Blob(recordedChunks, { type: mimeType });
+                    const formData = new FormData();
+                    const extension = mimeType === "audio/webm" ? "webm" : "mp4";
+                    formData.append("audio", audioBlob, `answer.${extension}`);
+
+                    try {
+                        const response = await fetch("{% url 'interviews:transcribe_audio' %}", {
+                            method: "POST",
+                            headers: { "X-CSRFToken": csrfToken },
+                            body: formData,
+                        });
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            recordingStatus.textContent = data.error || "Transcription failed.";
+                            return;
+                        }
+
+                        const existingText = answerInput.value.trim();
+                        answerInput.value = cleanJoin([existingText, data.text]);
+                        answerInput.dispatchEvent(new Event("input", { bubbles: true }));
+                        recordingStatus.textContent = "Transcribed answer added.";
+                    } catch (error) {
+                        recordingStatus.textContent = "Network error while transcribing.";
+                    }
+
+                    startRecordingButton.disabled = false;
+                    stopRecordingButton.disabled = true;
+                });
+
+                mediaRecorder.start();
+                startRecordingButton.disabled = true;
+                stopRecordingButton.disabled = false;
+                recordingStatus.textContent = "Recording...";
+            } catch (error) {
+                recordingStatus.textContent = "Microphone permission denied or unavailable.";
+            }
+        });
+
+        stopRecordingButton.addEventListener("click", () => {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
         });
     }
 </script>

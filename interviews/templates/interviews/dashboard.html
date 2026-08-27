@@ -24,7 +24,7 @@
                 {% if session.status == "completed" %}
                     <a class="btn" href="{% url 'interviews:report' session.id %}">View report</a>
                 {% else %}
-                    <a class="btn" href="{% url 'interviews:question' session.id 1 %}">Continue</a>
+                    <a class="btn" href="{% url 'interviews:question' session.id %}">Continue</a>
                 {% endif %}
             </div>
         </article>
